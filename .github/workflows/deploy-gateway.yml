@@ -10,7 +10,7 @@ on:
 
 env:
   PROJECT_ID: ps-task-6
-  GKE_CLUSTER: ps-task-cluster
+  GKE_CLUSTER: kl6
   GKE_ZONE: europe-west1-b
   DEPLOYMENT_NAME: gateway
   IMAGE_NAME: gateway
