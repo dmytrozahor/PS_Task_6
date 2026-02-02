@@ -1,0 +1,53 @@
+server:
+  port: 1000
+  error:
+    include-message: always
+    include-binding-errors: always
+
+spring:
+  application:
+    name: gateway
+  config:
+    import: optional:consul:/
+  cloud:
+    consul:
+      host: ${SPRING_CLOUD_CONSUL_HOST:consul}
+      port: ${SPRING_CLOUD_CONSUL_PORT:8500}
+      discovery:
+        health-check-path: /health
+    gateway:
+      routes:
+        - id: service-email-route
+          uri: lb://service-email
+          predicates:
+            - Path=/api/emails/**
+          filters:
+            - RewritePath=/api/emails/(?<remaining>.*), /api/emails/${remaining}
+        - id: service-authors-route
+          uri: lb://service-authors
+          predicates:
+            - Path=/api/authors/**
+          filters:
+            - RewritePath=/api/authors/(?<remaining>.*), /api/authors/${remaining}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      services:
+        wait-duration-in-open-state: 10s
+        failure-rate-threshold: 60
+        slow-call-duration-threshold:
+          - 2s
+        minimum-number-of-calls: 3
+        permitted-number-of-calls-in-half-open-state: 1
+
+
+management:
+  endpoint:
+    health:
+      show-details: always
+  endpoints:
+    web:
+      base-path: /
+      exposure:
+        include: "*"

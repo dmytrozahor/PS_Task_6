@@ -1,0 +1,74 @@
+server:
+  port: 1000
+
+spring:
+  application:
+    name: gateway
+
+  # IMPORTANT: override the default "optional:consul:/" so it doesn't even try
+  config:
+    import: ""
+
+  cloud:
+    # IMPORTANT: stop any service registry auto-registration
+    service-registry:
+      auto-registration:
+        enabled: false
+
+    consul:
+      enabled: false
+      discovery:
+        enabled: false
+      config:
+        enabled: false
+
+    gateway:
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins:
+              - https://reviews.dmytrozah.dev
+              - https://books.dmytrozah.dev
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders:
+              - "*"
+            exposedHeaders:
+              - "*"
+            allowCredentials: true
+      routes:
+        - id: service-book-reviews-root
+          uri: http://service-book-reviews:3000
+          predicates:
+            - Path=/api/reviews
+          filters:
+            - SetPath=/api/review
+        - id: service-book-reviews-subpaths
+          uri: http://service-book-reviews:3000
+          predicates:
+            - Path=/api/reviews/**
+          filters:
+            - RewritePath=/api/reviews/(?<remaining>.*),/api/review/${remaining}
+        - id: service-email-route
+          uri: http://service-email:1001
+          predicates:
+            - Path=/api/emails,/api/emails/**
+        - id: service-authors-route
+          uri: http://service-authors:1002
+          predicates:
+            - Path=/api/authors,/api/authors/**,/api/books,/api/books/**
+
+management:
+  endpoint:
+    health:
+      show-details: always
+  endpoints:
+    web:
+      base-path: /
+      exposure:
+        include: "*"

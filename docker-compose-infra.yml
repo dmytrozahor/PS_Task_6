@@ -1,0 +1,183 @@
+version: "3.9"
+
+services:
+  consul:
+    image: hashicorp/consul
+    container_name: "gws-consul"
+    ports:
+      - "8500:8500"
+    command: "consul agent -dev -ui -client=0.0.0.0"
+    healthcheck:
+      test: ["CMD", "consul", "info"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  postgres:
+    image: postgres:15
+    container_name: ps_task2_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: profitsoft
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  elasticsearch:
+    image: elasticsearch:8.6.1
+    container_name: "gws-elasticsearch"
+    environment:
+      - "discovery.type=single-node"
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - "xpack.security.enabled=false"
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kibana:
+    image: kibana:8.6.1
+    container_name: "gws-kibana"
+    environment:
+      - "ELASTICSEARCH_HOSTS=http://elasticsearch:9200"
+    ports:
+      - "5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: "gws-rabbitmq"
+    environment:
+      RABBITMQ_DEFAULT_USER: "rabbit"
+      RABBITMQ_DEFAULT_PASS: "s@cr3t"
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: "gws-mailpit"
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8025/api/v1/info" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  gateway:
+    build:
+      context: ./gateway/
+      dockerfile: Dockerfile
+    container_name: gateway
+    depends_on:
+      consul:
+        condition: service_healthy
+    ports:
+      - "1000:1000"
+    restart: on-failure
+    env_file:
+      - .env
+    environment:
+      SPRING_CLOUD_CONSUL_HOST: consul
+      SPRING_CLOUD_CONSUL_PORT: 8500
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:1000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 30s
+
+  service-email:
+    build:
+      context: ./service-email/
+      dockerfile: Dockerfile
+    container_name: service-email
+    depends_on:
+      gateway:
+        condition: service_healthy
+      consul:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "1001:1001"
+    restart: on-failure
+    env_file:
+      - .env
+    environment:
+      SPRING_CLOUD_CONSUL_HOST: consul
+      SPRING_CLOUD_CONSUL_PORT: 8500
+      SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:1001/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 30s
+
+  service-authors:
+    build:
+      context: ./service-authors/
+      dockerfile: Dockerfile
+    container_name: service-authors
+    depends_on:
+      gateway:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      consul:
+        condition: service_healthy
+      service-email:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "1002:1002"
+    restart: on-failure
+    env_file:
+      - .env
+    environment:
+      SPRING_CLOUD_CONSUL_HOST: consul
+      SPRING_CLOUD_CONSUL_PORT: 8500
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      POSTGRES_SERVER: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: profitsoft
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:1002/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 30s
+
+volumes:
+  pgdata:

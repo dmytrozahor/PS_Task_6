@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: service-authors-config
+  namespace: ps-task
+data:
+  SERVER_PORT: "1002"
+  SPRING_PROFILES_ACTIVE: "k8s"
+
+  POSTGRES_SERVER: "postgres"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "profitsoft"
+
+  SPRING_RABBITMQ_HOST: "rabbitmq"
+  SPRING_RABBITMQ_PORT: "5672"
