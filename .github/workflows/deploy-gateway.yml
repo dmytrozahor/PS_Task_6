@@ -11,7 +11,7 @@ on:
 env:
   PROJECT_ID: ps-task-6
   GKE_CLUSTER: ps-task-cluster
-  GKE_ZONE: europe-west1
+  GKE_ZONE: europe-west1-b
   DEPLOYMENT_NAME: gateway
   IMAGE_NAME: gateway
   REGISTRY_LOCATION: europe-west1-docker.pkg.dev
@@ -37,6 +37,10 @@ jobs:
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
+
+      - name: Clear Impersonation
+        run: |
+          gcloud config unset auth/impersonate_service_account
 
       - name: Configure Docker for Artifact Registry
         run: |
@@ -78,19 +82,7 @@ jobs:
           kubectl set image deployment/${{ env.DEPLOYMENT_NAME }} \
             ${{ env.DEPLOYMENT_NAME }}=${{ env.REGISTRY_LOCATION }}/${{ env.PROJECT_ID }}/dev/${{ env.IMAGE_NAME }}:${{ github.sha }} \
             -n ${{ env.NAMESPACE }}
-          
-          # Also update the deployment file with new image
-          kubectl apply -f k8s/services/40-gateway.yaml
 
       - name: Verify Deployment
         run: |
-          kubectl rollout status deployment/${{ env.DEPLOYMENT_NAME }} -n ${{ env.NAMESPACE }} --timeout=5m
-          kubectl get pods -l app=${{ env.DEPLOYMENT_NAME }} -n ${{ env.NAMESPACE }}
-          echo "Deployment successful!"
-
-      - name: Print Deployment Info
-        run: |
-          echo "Deployment completed successfully!"
-          echo "Image: ${{ env.REGISTRY_LOCATION }}/${{ env.PROJECT_ID }}/dev/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-          echo "Namespace: ${{ env.NAMESPACE }}"
-          echo "Deployment: ${{ env.DEPLOYMENT_NAME }}"
+          kubectl rollout status deployment/${{ env.DEPLOYMENT_NAME }} -n ${{ env.NAMESPACE }}
