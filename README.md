@@ -6,6 +6,11 @@
 
 Implementation of a production-ready microservices ecosystem with centralized authentication, authorization, and automated CI/CD deployment to Google Cloud Platform. The system demonstrates OAuth2 integration, Identity-Aware Proxy (IAP), Kubernetes orchestration, and continuous deployment practices.
 
+![dd.png](./img/dd.png)
+![routes.png](./img/routes.png)
+![lib.png](./img/lib.png)
+![reviews.png](./img/reviews.png)
+
 ## Live Deployment
 
 - **Books UI**: https://books.dmytrozah.dev
@@ -68,49 +73,6 @@ The application comprises multiple microservices deployed on GKE with centralize
 - `React`, `Nginx`, `TypeScript/JavaScript`
 
 ## Kubernetes Architecture
-
-### Services Deployment
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Google Cloud Load Balancer              │
-│                    (HTTPS + IAP Authentication)             │
-└─────────────────┬───────────────────┬───────────────────────┘
-                  │                   │
-        ┌─────────▼────────┐ ┌───────▼──────────┐
-        │  books.dmytrozah  │ │ api.dmytrozah    │
-        │      .dev         │ │     .dev         │
-        └─────────┬─────────┘ └───────┬──────────┘
-                  │                   │
-        ┌─────────▼─────────────────────▼──────────┐
-        │         Gateway Service (port 1000)       │
-        │    - Health checks: /health               │
-        │    - Profile endpoint: /profile           │
-        │    - Routes to all microservices          │
-        └─────────┬─────────────────────────────────┘
-                  │
-    ┌─────────────┼─────────────┬──────────────────┐
-    │             │             │                  │
-┌───▼────┐  ┌────▼────┐  ┌─────▼─────┐  ┌────────▼────────┐
-│Authors │  │  Email  │  │   Books   │  │     Reviews     │
-│ :1002  │  │  :1001  │  │   :3050   │  │  API + UI       │
-└───┬────┘  └────┬────┘  └───────────┘  │  :3000 + :80    │
-    │            │                       └─────────────────┘
-    │            │
-┌───▼────┐  ┌────▼──────┐
-│Postgres│  │Elasticsearch│
-│  :5432 │  │    :9200    │
-└────────┘  └──────┬──────┘
-                   │
-              ┌────▼────┐
-              │ Kibana  │
-              │  :5601  │
-              └─────────┘
-         ┌─────────────┐
-         │  RabbitMQ   │
-         │    :5672    │
-         └─────────────┘
-```
 
 ### Ingress Configuration
 
