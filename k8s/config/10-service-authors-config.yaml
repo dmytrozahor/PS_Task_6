@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: service-authors-config
+  namespace: ps-task
+data:
+  SERVER_PORT: "1002"
+  SPRING_PROFILES_ACTIVE: "k8s"
+
+  # PostgreSQL connection
+  POSTGRES_SERVER: "postgres"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "profitsoft"
+
+  # RabbitMQ connection
+  SPRING_RABBITMQ_HOST: "rabbitmq"
+  SPRING_RABBITMQ_PORT: "5672"
+
+  # Disable Consul (not used in k8s)
+  SPRING_CLOUD_CONSUL_ENABLED: "false"
+  SPRING_CLOUD_CONSUL_CONFIG_ENABLED: "false"
+  SPRING_CLOUD_CONSUL_DISCOVERY_ENABLED: "false"
+  SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED: "false"

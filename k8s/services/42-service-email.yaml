@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service-email
+  namespace: ps-task
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: service-email
+  template:
+    metadata:
+      labels:
+        app: service-email
+    spec:
+      containers:
+        - name: service-email
+          image: europe-west1-docker.pkg.dev/ps-task-6/dev/service-email:latest
+          ports:
+            - containerPort: 1001
+          envFrom:
+            - configMapRef:
+                name: service-email-config
+            - secretRef:
+                name: service-email-secret
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 1001
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 1001
+            initialDelaySeconds: 45
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-email
+  namespace: ps-task
+spec:
+  selector:
+    app: service-email
+  ports:
+    - name: http
+      port: 1001
+      targetPort: 1001
+  type: ClusterIP

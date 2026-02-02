@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service-books
+  namespace: ps-task
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: service-books
+  template:
+    metadata:
+      labels:
+        app: service-books
+    spec:
+      containers:
+        - name: service-books
+          image: europe-west1-docker.pkg.dev/ps-task-6/dev/service-books:latest
+          ports:
+            - containerPort: 3050
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3050
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3050
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-books
+  namespace: ps-task
+  annotations:
+    cloud.google.com/neg: '{"ingress": true}'
+spec:
+  selector:
+    app: service-books
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3050
+  type: ClusterIP

@@ -1,0 +1,8 @@
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: gateway-cert
+  namespace: ps-task
+spec:
+  domains:
+    - api.dmytrozah.dev

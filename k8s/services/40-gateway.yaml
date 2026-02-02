@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: ps-task
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gateway
+  template:
+    metadata:
+      labels:
+        app: gateway
+    spec:
+      containers:
+        - name: gateway
+          image: europe-west1-docker.pkg.dev/ps-task-6/dev/gateway:latest
+          ports:
+            - containerPort: 1000
+          env:
+            - name: SERVER_PORT
+              value: "1000"
+            - name: SPRING_PROFILES_ACTIVE
+              value: "k8s"
+            - name: SPRING_CLOUD_CONSUL_ENABLED
+              value: "false"
+            - name: SPRING_CLOUD_CONSUL_CONFIG_ENABLED
+              value: "false"
+            - name: SPRING_CLOUD_CONSUL_DISCOVERY_ENABLED
+              value: "false"
+            - name: SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED
+              value: "false"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 1000
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 1000
+            initialDelaySeconds: 45
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  namespace: ps-task
+  annotations:
+    cloud.google.com/backend-config: '{"default":"gateway-backendconfig"}'
+spec:
+  type: ClusterIP
+  selector:
+    app: gateway
+  ports:
+    - name: http
+      port: 80
+      targetPort: 1000

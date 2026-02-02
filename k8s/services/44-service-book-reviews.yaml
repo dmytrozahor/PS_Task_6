@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service-reviews-ui
+  namespace: ps-task
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: service-reviews-ui
+  template:
+    metadata:
+      labels:
+        app: service-reviews-ui
+    spec:
+      containers:
+        - name: service-reviews-ui
+          image: europe-west1-docker.pkg.dev/ps-task-6/dev/service-book-reviews-ui:latest
+          ports:
+            - containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-reviews-ui
+  namespace: ps-task
+  annotations:
+    cloud.google.com/neg: '{"ingress": true}'
+spec:
+  selector:
+    app: service-reviews-ui
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+  type: ClusterIP

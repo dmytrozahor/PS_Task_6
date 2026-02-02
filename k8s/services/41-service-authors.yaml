@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service-authors
+  namespace: ps-task
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: service-authors
+  template:
+    metadata:
+      labels:
+        app: service-authors
+    spec:
+      containers:
+        - name: service-authors
+          image: europe-west1-docker.pkg.dev/ps-task-6/dev/service-authors:latest
+          ports:
+            - containerPort: 1002
+          envFrom:
+            - configMapRef:
+                name: service-authors-config
+            - secretRef:
+                name: service-authors-secret
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 1002
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 1002
+            initialDelaySeconds: 45
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-authors
+  namespace: ps-task
+spec:
+  selector:
+    app: service-authors
+  ports:
+    - name: http
+      port: 1002
+      targetPort: 1002
+  type: ClusterIP

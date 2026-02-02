@@ -1,0 +1,8 @@
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: reviews-ui-cert
+  namespace: ps-task
+spec:
+  domains:
+    - reviews.dmytrozah.dev

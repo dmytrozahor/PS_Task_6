@@ -1,0 +1,8 @@
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: books-ui-cert
+  namespace: ps-task
+spec:
+  domains:
+    - books.dmytrozah.dev
