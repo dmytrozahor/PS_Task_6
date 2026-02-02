@@ -1,0 +1,101 @@
+name: Deploy Service Book Reviews
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'service-book-reviews/**'
+      - '.github/workflows/deploy-service-book-reviews.yml'
+
+env:
+  PROJECT_ID: ps-task-6
+  GKE_CLUSTER: ps-task-cluster
+  GKE_ZONE: europe-west1
+  DEPLOYMENT_NAME: service-book-reviews
+  IMAGE_NAME: service-book-reviews
+  REGISTRY_LOCATION: europe-west1-docker.pkg.dev
+  NAMESPACE: ps-task
+
+jobs:
+  setup-build-publish-deploy:
+    name: Setup, Build, Publish, and Deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ env.REGISTRY_LOCATION }}
+
+      - name: Get GKE credentials
+        run: |
+          gcloud container clusters get-credentials ${{ env.GKE_CLUSTER }} \
+            --zone ${{ env.GKE_ZONE }} \
+            --project ${{ env.PROJECT_ID }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: service-book-reviews/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd service-book-reviews
+          npm ci
+
+      - name: Run tests
+        run: |
+          cd service-book-reviews
+          npm test
+
+      - name: Build Docker Image
+        run: |
+          cd service-book-reviews
+          docker build -t ${{ env.REGISTRY_LOCATION }}/${{ env.PROJECT_ID }}/dev/${{ env.IMAGE_NAME }}:${{ github.sha }} .
+          docker tag ${{ env.REGISTRY_LOCATION }}/${{ env.PROJECT_ID }}/dev/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            ${{ env.REGISTRY_LOCATION }}/${{ env.PROJECT_ID }}/dev/${{ env.IMAGE_NAME }}:latest
+
+      - name: Push Docker Image
+        run: |
+          docker push ${{ env.REGISTRY_LOCATION }}/${{ env.PROJECT_ID }}/dev/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          docker push ${{ env.REGISTRY_LOCATION }}/${{ env.PROJECT_ID }}/dev/${{ env.IMAGE_NAME }}:latest
+
+      - name: Update Kubernetes Deployment
+        run: |
+          kubectl set image deployment/${{ env.DEPLOYMENT_NAME }} \
+            ${{ env.DEPLOYMENT_NAME }}=${{ env.REGISTRY_LOCATION }}/${{ env.PROJECT_ID }}/dev/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            -n ${{ env.NAMESPACE }}
+          
+          # Also update the deployment file with new image
+          kubectl apply -f k8s/services/44-service-book-reviews.yaml
+
+      - name: Verify Deployment
+        run: |
+          kubectl rollout status deployment/${{ env.DEPLOYMENT_NAME }} -n ${{ env.NAMESPACE }} --timeout=5m
+          kubectl get pods -l app=${{ env.DEPLOYMENT_NAME }} -n ${{ env.NAMESPACE }}
+          echo "Deployment successful!"
+          kubectl get services -n ${{ env.NAMESPACE }}
+
+      - name: Print Deployment Info
+        run: |
+          echo "Deployment completed successfully!"
+          echo "Image: ${{ env.REGISTRY_LOCATION }}/${{ env.PROJECT_ID }}/dev/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo "Namespace: ${{ env.NAMESPACE }}"
+          echo "Deployment: ${{ env.DEPLOYMENT_NAME }}"
